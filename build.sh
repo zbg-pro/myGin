@@ -1,0 +1,1 @@
+env GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=1.0.0 -X 'main.buildTime=$(date +'%Y-%m-%d %T')'" .
