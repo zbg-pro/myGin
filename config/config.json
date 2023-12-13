@@ -1,10 +1,16 @@
 {
   "mysql": {
-    "username": "tempuser",
-    "password": "tmp!QAZ2wsx1234*",
-    "addr": "172.16.100.150:15307",
-    "dbname": "quant",
+    "username": "root",
+    "password": "iPYDU0o3MRQOreEW",
+    "addr": "172.16.100.150:3309",
+    "dbname": "zb_trx",
     "option": "charset=utf8\u0026parseTime=True\u0026loc=Local"
-  }
+  },
 
+  "redis": {
+    "database": "jzcoin_main",
+    "host": "172.16.100.129",
+    "port": 4000,
+    "default": true
+  }
 }

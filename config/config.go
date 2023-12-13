@@ -15,6 +15,7 @@ import (
 
 type Config struct {
 	Mysql MysqlConfig `json:"mysql"`
+	Redis RedisConfig `json:"redis"`
 }
 
 type MysqlConfig struct {
@@ -23,6 +24,13 @@ type MysqlConfig struct {
 	Addr     string `json:"addr"`
 	Dbname   string `json:"dbname"`
 	Option   string `json:"option"`
+}
+
+type RedisConfig struct {
+	Database string `json:"database"`
+	Host     string `json:"host"`
+	Port     int64  `json:"port"`
+	Default  bool   `json:"default"`
 }
 
 var config Config
@@ -53,7 +61,17 @@ func GetConfig() *Config {
 
 func LoadConfigByFile() *Config {
 	fmt.Println(GetCurrentAbPath())
-	file, err := os.Open(GetCurrentAbPath() + "/config.json")
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return &config
+	}
+
+	//file, err := os.Open( /*GetCurrentAbPath() +*/ "./config/config.json")
+	configFilePath := filepath.Join(currentDir /*"..",*/, "config", "config.json")
+
+	file, err := os.Open(configFilePath)
+
 	if err != nil {
 		fmt.Println("Error opening config file:", err)
 
@@ -67,6 +85,8 @@ func LoadConfigByFile() *Config {
 		fmt.Println("Error decoding config file:", err)
 
 	}
+
+	fmt.Println("加载config完成：", &config)
 
 	return &config
 }
