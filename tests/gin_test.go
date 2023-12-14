@@ -220,19 +220,26 @@ func TestSqlLiteQuery(t *testing.T) {
 
 	//通用封装
 	// JSON 字符串
-	jsonData := `{"nameLike": "zl", "ageNqList":[24,25,26]}`
+	jsonData := `{"nameLike": "zl", "ageList":[24,25,26], "Age":"26"}`
 
 	// 解析 JSON 数据到结构体
-	var reqUser map[string]interface{}
-	err := json.Unmarshal([]byte(jsonData), &reqUser)
+	var paramMap map[string]interface{}
+	err := json.Unmarshal([]byte(jsonData), &paramMap)
 	if err != nil {
 		fmt.Println("Error parsing JSON:", err)
 		return
 	}
 
-	var targetUsers []User
-	dao.Query(nil, User{}, reqUser, &targetUsers)
-	fmt.Println("users2", targetUsers)
+	orderMap := map[string]bool{
+		"Age":    true,
+		"Name":   false,
+		"ID":     true,
+		"121age": true,
+	}
+	fmt.Println(orderMap)
+	var targetList []User
+	dao.Query(nil, User{}, paramMap, &targetList, orderMap)
+	fmt.Println("users2", targetList)
 }
 
 func TestToStr(t *testing.T) {
@@ -256,7 +263,7 @@ if containKey(paramMap, fieldName+"List") {
 func TestTypeField(t *testing.T) {
 	// 使用反射获取结构体信息
 	// JSON 字符串
-	jsonData := `{"name": "zl239", "age": 26}`
+	jsonData := `{"name": "zl239", "Age": 26, "age"："11"}`
 
 	// 解析 JSON 数据到结构体
 	var reqUser map[string]interface{}
@@ -277,4 +284,52 @@ func TestTypeField(t *testing.T) {
 		// 打印字段名和值
 		fmt.Printf("Field: %s, Value: %v\n", field.Name, "val---")
 	}
+}
+
+func TestGetDefaultVal(t *testing.T) {
+	paramMap := map[string]interface{}{
+		"1":  "2",
+		"aa": "b",
+
+		"pageIndex": "-1",
+		"pageNum":   "-123",
+		"pageNo":    "-345",
+
+		"pageSize": "100000000",
+	}
+	pageIndex := dao.GetPageIndex(paramMap)
+	pageSize := dao.GetPageSize(paramMap)
+
+	fmt.Println("pageIndex:", pageIndex)
+	fmt.Println("pageSize:", pageSize)
+
+	orderMap := map[string]bool{
+		"Age":    true,
+		"Name":   false,
+		"ID":     true,
+		"121age": true,
+	}
+	s := dao.GetOrderBySql(User{}, orderMap, pageIndex, pageSize)
+	fmt.Println("$$$$$$$ " + s)
+}
+
+func TestGetColNameByFieldName(t *testing.T) {
+	a := dao.GetTableColumnNameByFieldName(User{}, "Name")
+	fmt.Println(a)
+
+	fmt.Println(dao.GetPrimaryKeyJsonName(User{}))
+
+	var user User
+	dao.SelectById(nil, User{}, 5, &user)
+	fmt.Println(user)
+}
+
+func TestSelectList(t *testing.T) {
+	model := User{
+		Age: 26,
+	}
+
+	var users []User
+	dao.SelectList(nil, model, &users)
+	fmt.Println(users)
 }

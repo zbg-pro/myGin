@@ -13,7 +13,7 @@ func InitLogger() {
 	gin.DefaultWriter = io.MultiWriter(os.Stdout)
 
 	// 配置日志输出到文件
-	file, err := os.OpenFile("gin.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	file, err := os.OpenFile("../gin.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		fmt.Println("Failed to open log file:", err)
 	} else {

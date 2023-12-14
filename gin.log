@@ -1,0 +1,3 @@
+2023/12/14 18:59:13 whereSql:   1=1  and age=?  limit 0, 10 
+2023/12/14 18:59:13 whereParam:  [26]
+2023/12/14 18:59:13 conditions:[" 1=1  and age=?  limit 0, 10 ",26]

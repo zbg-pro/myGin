@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -20,7 +21,6 @@ func ContainKey(data map[string]interface{}, key string) bool {
 func IsEmptyCollection(listVal interface{}) bool {
 	if list, ok := listVal.([]interface{}); ok && list != nil {
 		// 如果存在且不为 nil，打印列表内容
-		fmt.Println("List is not nil:", list)
 
 		// 判断列表是否为空
 		if len(list) == 0 {
@@ -57,6 +57,49 @@ func FilterEmptyStrings(inputMap map[string]interface{}) map[string]interface{} 
 			}
 		default:
 			// 对于其他类型，保留
+			resultMap[key] = value
+		}
+	}
+
+	return resultMap
+}
+
+func FilterMapEmptyValues(inputMap map[string]interface{}) map[string]interface{} {
+	resultMap := make(map[string]interface{})
+
+	for key, value := range inputMap {
+		// 使用反射获取值的类型
+		valType := reflect.TypeOf(value)
+
+		// 判断值是否为 nil
+		if value == nil {
+			continue
+		}
+
+		// 根据值的类型进行处理
+		switch valType.Kind() {
+		case reflect.String:
+			// 如果是字符串类型，判断是否为空字符串
+			if strings.Trim(fmt.Sprintf("%v", value), " ") != "" {
+				resultMap[key] = value
+			}
+		case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			// 如果是整数类型，判断是否为 0
+			if reflect.ValueOf(value).Int() != 0 {
+				resultMap[key] = value
+			}
+		case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			// 如果是无符号整数类型，判断是否为 0
+			if reflect.ValueOf(value).Uint() != 0 {
+				resultMap[key] = value
+			}
+		case reflect.Float64, reflect.Float32:
+			// 如果是浮点数类型，判断是否为 0
+			if reflect.ValueOf(value).Float() != 0 {
+				resultMap[key] = value
+			}
+		default:
+			// 其他类型，直接添加到结果 map 中
 			resultMap[key] = value
 		}
 	}
@@ -133,4 +176,13 @@ func SliceToInClause(slice interface{}) string {
 
 	// 使用逗号连接元素，并在两端添加括号
 	return "(" + strings.Join(elements, ",") + ")"
+}
+
+func ToJSON(val interface{}) string {
+	jsonData, err := json.Marshal(val)
+	if err == nil {
+		return string(jsonData)
+	} else {
+		return fmt.Sprintf("toJSON error:%v", err)
+	}
 }
