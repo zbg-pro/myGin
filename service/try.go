@@ -1,6 +1,7 @@
 package service
 
-// TryCatchFinally 处理不可遇见性的错误时尝试使用，正常情况通过预见的错误和业务逻辑中的问题，建议使用 error 类型/*
+// TryCatchFinally 处理不可遇见性的错误时尝试使用，正常情况通过预见的错误和业务逻辑中的问题，建议使用 error 类型
+// 谨慎使用panic defer/*
 type TryCatchFinally struct {
 	try     func()
 	catch   func(any2 any)
