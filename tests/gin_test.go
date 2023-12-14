@@ -23,8 +23,7 @@ var dsn string // 全局变量 dsn
 func init() {
 	cfg := config.LoadConfigByFile()
 	// 构建 MySQL 连接字符串
-	dsn = cfg.Mysql.Username + ":" + cfg.Mysql.Password + "@tcp(" + cfg.Mysql.Addr + ")/" + cfg.Mysql.Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
-
+	fmt.Println(cfg)
 }
 
 func TestQueryMysqlDb(t *testing.T) {
@@ -60,7 +59,7 @@ func TestConfig(t *testing.T) {
 	//fmt.Println(cfg.Mysql.Username)
 
 	cfg := config.LoadConfigByFile()
-	fmt.Println(cfg.Mysql.Username)
+	fmt.Println(cfg.Mysql[0].Username)
 
 }
 
@@ -143,7 +142,6 @@ func TestSqlLiteCreateTable(t *testing.T) {
 		log.Println("创建失败：", err)
 	}
 
-	//db.AutoMigrate(&User{})
 	db.AutoMigrate(&Book{})
 
 }

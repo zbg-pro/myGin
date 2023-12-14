@@ -14,8 +14,8 @@ import (
 )
 
 type Config struct {
-	Mysql MysqlConfig `json:"mysql"`
-	Redis RedisConfig `json:"redis"`
+	Mysql []MysqlConfig `json:"mysql"`
+	Redis RedisConfig   `json:"redis"`
 }
 
 type MysqlConfig struct {
@@ -24,6 +24,7 @@ type MysqlConfig struct {
 	Addr     string `json:"addr"`
 	Dbname   string `json:"dbname"`
 	Option   string `json:"option"`
+	UqName   string `json:"uqName"`
 }
 
 type RedisConfig struct {

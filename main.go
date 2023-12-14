@@ -13,41 +13,52 @@ import (
 	"sync"
 )
 
-var dsn string // 全局变量 dsn
-
-var dbPool *sync.Pool
+var dataSource map[string]*sync.Pool
 
 func init() {
+	dataSource = make(map[string]*sync.Pool)
+
 	cfg := config.LoadConfigByFile()
-	// 构建 MySQL 连接字符串
-	dsn = cfg.Mysql.Username + ":" + cfg.Mysql.Password + "@tcp(" + cfg.Mysql.Addr + ")/" + cfg.Mysql.Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
 
-	dbPool = &sync.Pool{
-		New: func() interface{} {
-			// 连接 MySQL 数据库
-			db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-			if err != nil {
-				log.Println("Failed to connect to database:", err)
-			} else {
-				db.Logger.LogMode(logger.Info)
-			}
-			// 获取底层的 *sql.DB 对象
-			sqlDB, err := db.DB()
-			if err != nil {
-				panic(err.Error())
-			}
-			// 设置连接池参数
-			sqlDB.SetMaxOpenConns(100)
-			sqlDB.SetMaxIdleConns(10)
+	mysqlConfig := cfg.Mysql
+	for i := 0; i < len(mysqlConfig); i++ {
+		uqName := mysqlConfig[i].UqName
+		if uqName == "" {
+			uqName = mysqlConfig[i].Dbname
+		}
 
-			log.Println("Database connection successful")
+		// 构建 MySQL 连接字符串
+		dsn := mysqlConfig[i].Username + ":" + mysqlConfig[i].Password + "@tcp(" + mysqlConfig[i].Addr + ")/" + mysqlConfig[i].Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
 
-			return db
-		},
+		dbPool := &sync.Pool{
+			New: func() interface{} {
+				// 连接 MySQL 数据库
+				db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+				if err != nil {
+					log.Println("Failed to connect to database:", err)
+				} else {
+					db.Logger.LogMode(logger.Info)
+				}
+				// 获取底层的 *sql.DB 对象
+				sqlDB, err := db.DB()
+				if err != nil {
+					panic(err.Error())
+				}
+				// 设置连接池参数
+				sqlDB.SetMaxOpenConns(100)
+				sqlDB.SetMaxIdleConns(10)
+
+				log.Println("Database connection successful")
+
+				return db
+			},
+		}
+
+		dataSource[uqName] = dbPool
 	}
 
-	dbConn := dbPool.Get().(*gorm.DB)
-	dbConn.AutoMigrate(&model.CoinKey{})
+	//dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
+	//dbConn.AutoMigrate(&model.CoinKey{})
 
 }
 
@@ -113,21 +124,27 @@ func main() {
 }
 
 func QueryCoinKeys() ([]model.CoinKey, error) {
-	dbConn := dbPool.Get().(*gorm.DB)
+	dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
+	defer closeDs(dbConn, "zb_trx")
 	var result []model.CoinKey
 	//db.Raw("select * from coinKey").Scan(&result)
 
 	if err := dbConn.Find(&result).Error; err != nil {
 		log.Println("Failed to query CoinKeys:", err)
-		dbPool.Put(dbConn)
 		return nil, err
 	}
-	dbPool.Put(dbConn)
 	return result, nil
 }
 
+func closeDs(db *gorm.DB, databaseName string) {
+	log.Println("enter ...")
+	if db != nil {
+		dataSource[databaseName].Put(db)
+	}
+}
+
 func bindUserAddress(data model.CoinKey) int64 {
-	dbConn := dbPool.Get().(*gorm.DB)
+	dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
 	// 定义需要更新的字段
 	updateFields := map[string]interface{}{
 		"userName": data.UserName,

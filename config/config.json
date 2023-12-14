@@ -1,11 +1,14 @@
 {
-  "mysql": {
-    "username": "root",
-    "password": "iPYDU0o3MRQOreEW",
-    "addr": "172.16.100.150:3309",
-    "dbname": "zb_trx",
-    "option": "charset=utf8\u0026parseTime=True\u0026loc=Local"
-  },
+  "mysql": [
+    {
+      "username": "root",
+      "password": "iPYDU0o3MRQOreEW",
+      "addr": "172.16.100.150:3309",
+      "dbname": "zb_trx",
+      "option": "charset=utf8\u0026parseTime=True\u0026loc=Local",
+      "uqName": "zb_trx"
+    }
+  ],
 
   "redis": {
     "database": "jzcoin_main",
