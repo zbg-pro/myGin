@@ -1,3 +1,53 @@
 2023/12/14 18:59:13 whereSql:   1=1  and age=?  limit 0, 10 
 2023/12/14 18:59:13 whereParam:  [26]
 2023/12/14 18:59:13 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2023/12/16 03:08:41 whereSql:   1=1  and age=?  limit 0, 10 
+2023/12/16 03:08:41 whereParam:  [26]
+2023/12/16 03:08:41 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2023/12/17 20:59:33 Failed to connect to database: dial tcp 127.0.0.1:3306: connect: connection refused
+2023/12/17 20:59:33 Database connection successful
+2024/01/03 17:32:58 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/03 17:32:58 whereParam:  [26]
+2024/01/03 17:32:58 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2024/01/03 17:40:04 whereSql:   1=1  and name like ?  and age in ('24','25','26') and age=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:40:04 whereParam:  ["%zl%",26]
+2024/01/03 17:40:04 conditions:[" 1=1  and name like ?  and age in ('24','25','26') and age=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ","%zl%",26]
+2024/01/03 17:44:26 whereSql:   1=1  and name like ?  and age in ('24','25','26') and age=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:44:26 whereParam:  ["%zl%",26,100]
+2024/01/03 17:44:26 conditions:[" 1=1  and name like ?  and age in ('24','25','26') and age=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ","%zl%",26,100]
+2024/01/03 17:44:57 whereSql:   1=1  and name like ?  and age in ('24','25','26') and age=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:44:57 whereParam:  ["%zl%",26,100]
+2024/01/03 17:44:57 conditions:[" 1=1  and name like ?  and age in ('24','25','26') and age=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ","%zl%",26,100]
+2024/01/03 17:46:53 whereSql:   1=1  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:46:53 whereParam:  [100]
+2024/01/03 17:46:53 conditions:[" 1=1  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",100]
+2024/01/03 17:48:43 whereSql:   1=1  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:48:43 whereParam:  [100]
+2024/01/03 17:48:43 conditions:[" 1=1  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",100]
+2024/01/03 17:49:48 whereSql:   1=1  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:49:48 whereParam:  [100]
+2024/01/03 17:49:48 conditions:[" 1=1  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",100]
+2024/01/03 17:50:34 whereSql:   1=1  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 17:50:34 whereParam:  [100]
+2024/01/03 17:50:34 conditions:[" 1=1  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",100]
+2024/01/03 18:04:51 whereSql:   1=1  and age>=?  and age<=?  order by name desc,id asc,age asc limit 0, 10 
+2024/01/03 18:04:51 whereParam:  [2,100]
+2024/01/03 18:04:51 conditions:[" 1=1  and age\u003e=?  and age\u003c=?  order by name desc,id asc,age asc limit 0, 10 ",2,100]
+2024/01/03 18:08:35 whereSql:   1=1  and age in (?,?,?)  and age>=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 18:08:35 whereParam:  [24,25,26,2,100]
+2024/01/03 18:08:35 conditions:[" 1=1  and age in (?,?,?)  and age\u003e=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",24,25,26,2,100]
+2024/01/03 18:09:24 whereSql:   1=1  and age in (?,?,?)  and age>=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 18:09:24 whereParam:  [24,25,26,2,100]
+2024/01/03 18:09:24 conditions:[" 1=1  and age in (?,?,?)  and age\u003e=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",24,25,26,2,100]
+2024/01/03 18:11:06 whereSql:   1=1  and age in (?,?,?)  and age>=?  and age<=?  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 18:11:06 whereParam:  [24,25,26,2,100]
+2024/01/03 18:11:06 conditions:[" 1=1  and age in (?,?,?)  and age\u003e=?  and age\u003c=?  order by age asc,name desc,id asc limit 0, 10 ",24,25,26,2,100]
+2024/01/03 18:32:22 whereSql:   1=1  and age in (?,?,?)  and age>=?  and age<=?  order by id asc,age asc,name desc limit 0, 10 
+2024/01/03 18:32:22 whereParam:  [24,25,26,2,100]
+2024/01/03 18:32:22 conditions:[" 1=1  and age in (?,?,?)  and age\u003e=?  and age\u003c=?  order by id asc,age asc,name desc limit 0, 10 ",24,25,26,2,100]
+2024/01/03 18:36:29 whereSql:   1=1  and name not in (?,?)  order by id asc,age asc,name desc limit 0, 10 
+2024/01/03 18:36:29 whereParam:  ["a","b"]
+2024/01/03 18:36:29 conditions:[" 1=1  and name not in (?,?)  order by id asc,age asc,name desc limit 0, 10 ","a","b"]
+2024/01/03 18:36:52 whereSql:   1=1  and name not in (?,?)  and age in (?,?,?)  order by age asc,name desc,id asc limit 0, 10 
+2024/01/03 18:36:52 whereParam:  ["a","b",24,25,26]
+2024/01/03 18:36:52 conditions:[" 1=1  and name not in (?,?)  and age in (?,?,?)  order by age asc,name desc,id asc limit 0, 10 ","a","b",24,25,26]

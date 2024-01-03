@@ -3,17 +3,41 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"log"
 	"myGin/config"
 	"myGin/model"
+	"myGin/utils"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 )
 
 var dataSource map[string]*sync.Pool
+var clientsMutex sync.Mutex
+
+type Client struct {
+	Conn      *websocket.Conn
+	Token     string
+	UserId    string
+	Topics    *utils.Set
+	pingMutex sync.Mutex
+	lastPing  time.Time
+}
+
+func (c *Client) updateLastPing() {
+	c.pingMutex.Lock()
+	defer c.pingMutex.Unlock()
+	c.lastPing = time.Now()
+}
+
+var upgrader = websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
+
+var clients = make(map[string]*Client)
 
 func init() {
 	dataSource = make(map[string]*sync.Pool)
@@ -74,6 +98,12 @@ func main() {
 		})
 	})
 
+	r.GET("/ws", func(context *gin.Context) {
+		handleWebSocket(context.Writer, context.Request)
+	})
+	// 启动心跳检测协程
+	go startHeartbeat()
+
 	// 添加一个 GET 请求路由
 	r.GET("/AA", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -121,6 +151,103 @@ func main() {
 	})
 
 	r.Run(":8084")
+}
+
+func startHeartbeat() {
+	for {
+		time.Sleep(10 * time.Second)
+
+		for _, client := range clients {
+			client.pingMutex.Lock()
+			if time.Since(client.lastPing) > 60*time.Second {
+				// 超过一定时间没有收到心跳，认为连接不可用，执行清理操作
+				delete(clients, client.Token)
+				client.Conn.Close()
+				fmt.Printf("Client disconnected due to heartbeat timeout: %s\n", client.Token)
+			}
+			client.pingMutex.Unlock()
+		}
+	}
+}
+
+func handleWebSocket(writer gin.ResponseWriter, request *http.Request) {
+	token := getTokenFromRequest(request)
+	client, exist := clients[token]
+	if !exist {
+		conn, err := upgrader.Upgrade(writer, request, nil)
+		if err != nil {
+			fmt.Println("Error upgrading to WebSocket:", err)
+			return
+		}
+
+		client = &Client{Conn: conn, Token: token}
+		clientsMutex.Lock()
+		clients[token] = client
+		clientsMutex.Unlock()
+		fmt.Printf("Client connected: %s\n", client.Token)
+	}
+	// 处理 WebSocket 连接的读写操作
+	go handleWebSocketConnection(client)
+}
+
+func handleWebSocketConnection(client *Client) {
+	/*defer func() {
+		fmt.Printf("Client disconnected: %s\n", client.Token)
+		clientsMutex.Lock()
+		delete(clients, client.Token)
+		clientsMutex.Unlock()
+
+		client.Conn.Close()
+	}()*/
+
+	loopFlag := true
+	for loopFlag {
+		messageType, p, err := client.Conn.ReadMessage()
+		if err != nil {
+			if websocket.IsUnexpectedCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				fmt.Println("Unexpected close error:", err)
+			}
+			// 客户端断开连接，执行清理操作
+			return
+		}
+
+		fmt.Printf("%s Received messageType:%d, message: %s\n", time.Now().String(), messageType, p)
+
+		// 更新最后一次收到消息的时间，用于心跳检测
+		client.updateLastPing()
+
+		// 处理接收到的消息
+		handleMessage(client, messageType, string(p))
+
+	}
+}
+
+func handleMessage(client *Client, messageType int, receiveMsg string) {
+	// 在这里处理接收到的消息
+	// 你可以根据需要实现不同的业务逻辑
+
+	clientsMutex.Lock()
+	defer clientsMutex.Unlock()
+
+	var sendMsg = ""
+	if receiveMsg == "ping" {
+		sendMsg = "pong"
+	} else {
+		sendMsg = "消息收到了：" + receiveMsg
+	}
+	err := client.Conn.WriteMessage(messageType, []byte(sendMsg))
+	if err != nil {
+		fmt.Println("Error writing message:", err)
+	}
+
+}
+
+func getTokenFromRequest(r *http.Request) string {
+	// 这里根据实际需求获取 token
+	// 你可以从请求中提取 cookie 或其他信息来生成唯一的 token
+	// 这里简单返回 IP 地址作为示例
+	ip := strings.Split(r.RemoteAddr, ":")[0]
+	return ip
 }
 
 func QueryCoinKeys() ([]model.CoinKey, error) {

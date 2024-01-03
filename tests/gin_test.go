@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/websocket"
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -218,8 +219,8 @@ func TestSqlLiteQuery(t *testing.T) {
 
 	//通用封装
 	// JSON 字符串
-	jsonData := `{"nameLike": "zl", "ageList":[24,25,26], "Age":"26"}`
-
+	jsonData := `{"nameLike": "zl", "ageList":[24,25,26], "Age":"26", "AgeMax":"100", "AgeMin":0}`
+	jsonData = `{ "nameNqList":["a","b"],"ageList":[24,25,26]}`
 	// 解析 JSON 数据到结构体
 	var paramMap map[string]interface{}
 	err := json.Unmarshal([]byte(jsonData), &paramMap)
@@ -330,4 +331,124 @@ func TestSelectList(t *testing.T) {
 	var users []User
 	dao.SelectList(nil, model, &users)
 	fmt.Println(users)
+}
+
+// 示例结构体
+type MyStruct struct {
+	StringField string
+	IntField    int
+	FloatField  float64
+}
+
+// 将对象转换为 map，去掉零值或空值的字段
+func StructToMap(obj interface{}) map[string]interface{} {
+	resultMap := make(map[string]interface{})
+
+	// 获取对象的反射类型和值
+	objType := reflect.TypeOf(obj)
+	objValue := reflect.ValueOf(obj)
+
+	// 遍历对象的字段
+	for i := 0; i < objType.NumField(); i++ {
+		field := objType.Field(i)
+		fieldValue := objValue.Field(i).Interface()
+
+		// 添加条件判断，只将非零值或非空值的字段放入 map
+		// 判断字段的值是否为零值并且没有设置值
+		if isZeroValue(fieldValue) && isEmptyStringValue(fieldValue) {
+			continue
+		}
+		// 将非零值或非空字符串的字段添加到 map
+		resultMap[field.Name] = fieldValue
+	}
+
+	return resultMap
+}
+
+// 判断值是否为其类型的零值
+func isZeroValue(value interface{}) bool {
+	zeroValue := reflect.Zero(reflect.TypeOf(value)).Interface()
+	return reflect.DeepEqual(value, zeroValue)
+}
+
+// 判断字符串是否为空字符串
+func isEmptyStringValue(value interface{}) bool {
+	if str, ok := value.(string); ok {
+		return str == ""
+	}
+	return false
+}
+
+func TestConvertMap(t *testing.T) {
+	// 示例结构体实例
+	myStruct := MyStruct{
+		StringField: "",
+		FloatField:  0.0,
+	}
+
+	// 将结构体转换为 map
+	resultMap := StructToMap(myStruct)
+
+	// 输出结果
+	fmt.Println(resultMap)
+}
+
+func TestSet(t *testing.T) {
+	mySet := make(utils.Set)
+	mySet.Add("ddd")
+	mySet.Add("ccc")
+	mySet.Add("dfsdf")
+	mySet.Remove("ddd")
+	exist := mySet.Contains("ddd")
+	fmt.Println("exist", exist)
+}
+
+func TestWebSocketClient(t *testing.T) {
+	serverURL := "ws://localhost:8084/ws"
+	// 使用默认的gorilla/websocket配置
+	dialer := websocket.DefaultDialer
+
+	//连接WebSocket服务器
+	conn, _, err := dialer.Dial(serverURL, nil)
+	if err != nil {
+		fmt.Println("Error connecting to WebSocket server:", err)
+		return
+	}
+	defer conn.Close()
+
+	go handlerServerMsg(conn)
+
+	// 在主goroutine中发送消息给服务器
+	i := 0
+	flag := true
+	for flag {
+		var message string
+
+		i = i + 1
+		message = fmt.Sprintf("hello, 你好！[%d]", i)
+		fmt.Printf("start send msg to Server, msg:%s\n", message)
+		err := conn.WriteMessage(websocket.TextMessage, []byte(message))
+		if err != nil {
+			fmt.Println("Error sending message:", err)
+			flag = false
+			break
+		}
+
+		// 等待一些时间以确保服务器有足够的时间处理关闭请求
+		time.Sleep(2 * time.Second)
+
+	}
+
+}
+
+func handlerServerMsg(conn *websocket.Conn) {
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			fmt.Println("Error reading message:", err)
+			return
+		}
+		fmt.Printf("Received message from server: %s\n", message)
+
+	}
 }
