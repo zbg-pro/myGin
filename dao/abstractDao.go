@@ -94,13 +94,13 @@ func GetConditions(paramMap map[string]interface{}, modelType QueryModel, orderB
 
 		sql = sql + jsonSql + columnSql + filedSql
 		if len(jsonParam) > 0 {
-			params = append(params, jsonParam[0])
+			params = append(params, jsonParam...)
 		}
 		if len(columnParam) > 0 {
-			params = append(params, columnParam[0])
+			params = append(params, columnParam...)
 		}
 		if len(filedParam) > 0 {
-			params = append(params, filedParam[0])
+			params = append(params, filedParam...)
 		}
 
 	}
@@ -200,6 +200,17 @@ func getWhereParamAndSql(paramKeyName string, paramMap map[string]interface{}, c
 			fieldValue = utils.ConvertToNumber(fmt.Sprintf("%v", fieldValue))
 			params = append(params, fieldValue)
 		}
+	}
+	if utils.ContainKey(paramMap, paramKeyName+"Max") {
+		fieldValue := paramMap[paramKeyName+"Max"]
+		sql = sql + " and " + columnName + "<=? "
+		delete(paramMap, paramKeyName+"Max")
+		if isString {
+			params = append(params, fieldValue.(string))
+		} else {
+			fieldValue = utils.ConvertToNumber(fmt.Sprintf("%v", fieldValue))
+			params = append(params, fieldValue)
+		}
 
 	}
 
@@ -208,16 +219,43 @@ func getWhereParamAndSql(paramKeyName string, paramMap map[string]interface{}, c
 		fieldValue := paramMap[paramKeyName+"List"]
 		if !utils.IsEmptyCollection(fieldValue) {
 			delete(paramMap, paramKeyName+"List")
-			sql = sql + " and " + columnName + " in " + utils.SliceToInClause(fieldValue.([]interface{}))
+			// 生成占位符字符串 (?, ?, ?)
+			arr := fieldValue.([]interface{})
+			if len(arr) > 0 {
+				placeholders := make([]string, len(arr))
+				for i := range placeholders {
+					placeholders[i] = "?"
+				}
+				for i := 0; i < len(arr); i++ {
+					params = append(params, arr[i])
+				}
+
+				sql = sql + " and " + columnName + " in (" + strings.Join(placeholders, ",") + ") "
+			}
+			//sql = sql + " and " + columnName + " in " + utils.SliceToInClause(fieldValue.([]interface{}))
 		}
 
 	}
 	//not in()
 	if utils.ContainKey(paramMap, paramKeyName+"NqList") {
 		fieldValue := paramMap[paramKeyName+"NqList"]
-		if utils.IsEmptyCollection(fieldValue) {
+		if !utils.IsEmptyCollection(fieldValue) {
 			delete(paramMap, paramKeyName+"NqList")
-			sql = sql + " and " + columnName + " not in " + utils.SliceToInClause(fieldValue.([]interface{}))
+
+			// 生成占位符字符串 (?, ?, ?)
+			arr := fieldValue.([]interface{})
+			if len(arr) > 0 {
+				placeholders := make([]string, len(arr))
+				for i := range placeholders {
+					placeholders[i] = "?"
+				}
+				for i := 0; i < len(arr); i++ {
+					params = append(params, arr[i])
+				}
+
+				sql = sql + " and " + columnName + " not in (" + strings.Join(placeholders, ",") + ") "
+			}
+			//sql = sql + " and " + columnName + " not in " + utils.SliceToInClause(fieldValue.([]interface{}))
 		}
 	}
 
