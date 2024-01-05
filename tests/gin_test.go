@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"myGin/model"
 	"myGin/utils"
 	"reflect"
+	"sync"
 	"testing"
 	"time"
 )
@@ -451,4 +453,243 @@ func handlerServerMsg(conn *websocket.Conn) {
 		fmt.Printf("Received message from server: %s\n", message)
 
 	}
+}
+
+func TestWaitGroupWait(t *testing.T) {
+	var wg sync.WaitGroup // 申明一个协程等待组
+	for i := 1; i <= 5; i++ {
+		wg.Add(1)         // 在启动 goroutine 前增加计数器
+		go worker(i, &wg) // 启动 goroutine
+	}
+
+	wg.Wait() // 等待所有 goroutine 完成
+	fmt.Println("all worker end ")
+
+}
+
+// 这里必须使用指针，因为在go中结构体属于值类型，如果使用值传递，就会拷贝一个副本给方法
+// go语言中引用类型有：map，数组切片，通道，接口
+// 值类型有：基本类型int float64 bool 复数类型complex64 complex128 字符类型byte run
+// 字符串string  数组Array 结构体
+func worker(id int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	fmt.Println("worker start ", id)
+	time.Sleep(time.Second)
+	fmt.Println("worker end", id)
+}
+
+func TestArr(t *testing.T) {
+	var arr [3]int
+	arr[0] = 1
+	arr[1] = 2
+	arr[2] = 3
+
+	arr2 := [3]int{1, 2, 3}
+
+	for i, v := range arr2 {
+		fmt.Printf("i: %d v: %d", i, v)
+	}
+}
+
+func TestSlice(t *testing.T) {
+	var slice []int
+	fmt.Println(slice)
+	//slice[1] = 1
+	//slice[100] = 100
+	//slice[200] = 22
+	slice = append(slice, 100)
+	slice = append(slice, 100)
+	slice = append(slice, 100)
+	slice = append(slice, 100)
+	slice = append(slice, 100)
+	slice = append(slice, 100)
+
+	slice[5] = 50
+	fmt.Println(slice)
+}
+
+func TestChan1(t *testing.T) {
+	var chan1 = make(chan int)
+	go func() {
+		defer close(chan1)
+		for i := 0; i < 5; i++ {
+			chan1 <- i
+		}
+	}()
+
+	for val := range chan1 {
+		fmt.Println(val)
+	}
+}
+
+func TestSelectChan1(t *testing.T) {
+	var chan1 = make(chan string)
+	var chan2 = make(chan string)
+
+	go func() {
+		time.Sleep(time.Second * 2)
+		chan1 <- "chan1 msg!!"
+
+		chan2 <- "chan2 msg!!"
+
+	}()
+
+	for {
+		fmt.Println("time:", time.Now().String())
+		select {
+		case val := <-chan2:
+			fmt.Println(val)
+			fmt.Println("chan2 done")
+
+		case val := <-chan1:
+			fmt.Println(val)
+
+		case <-time.After(time.Second * 3):
+
+		}
+	}
+
+}
+
+func TestBlockChan(t *testing.T) {
+	var chan1 = make(chan string)
+	fmt.Println("start1")
+	go func() { chan1 <- "aaa" }()
+	fmt.Println("start2")
+	val := <-chan1
+	fmt.Println("val", val)
+	fmt.Println("end")
+}
+
+func TestBlockChan2(t *testing.T) {
+
+	// 创建一个无缓冲的通道
+	ch := make(chan int)
+
+	// 启动一个 goroutine 接收数据
+	go func() {
+		fmt.Println("Receiving data...")
+		data := <-ch // 阻塞，直到有发送者发送数据
+		fmt.Println("Data received:", data)
+	}()
+
+	// 模拟一些其他工作
+	time.Sleep(2 * time.Second)
+
+	// 主 goroutine 发送数据
+	fmt.Println("Sending data...")
+	ch <- 42 // 阻塞，直到有接收者接收数据
+	fmt.Println("Data sent.")
+
+	// 等待一些时间，以便接收 goroutine 完成
+	time.Sleep(2 * time.Second)
+
+}
+
+func TestCacheChan1(t *testing.T) {
+	var wg sync.WaitGroup
+	ch := make(chan int, 3)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 5; i++ {
+			ch <- i
+		}
+		close(ch)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			// 通过 ok 判断通道是否关闭
+			if val, ok := <-ch; ok {
+				fmt.Println("Received:", val)
+			} else {
+				fmt.Println("Channel closed. Exiting.")
+				return
+			}
+		}
+	}()
+
+	fmt.Println("end1")
+	wg.Wait()
+	fmt.Println("end2")
+}
+
+func TestStopFor(t *testing.T) {
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ctx.Done()
+	ctx.Value("qqq")
+	ch := make(chan int, 3)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 5; i++ {
+			ch <- i
+		}
+		close(ch)
+	}()
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for {
+			fmt.Println("for start")
+			val, ok := <-ch
+			if !ok {
+				fmt.Println("Channel closed. Exiting.")
+				return
+			}
+			fmt.Println("Received:", val)
+			/*select {
+			case val, ok := <-ch:
+				if !ok {
+					fmt.Println("Channel closed. Exiting.")
+					return
+				}
+				fmt.Println("Received:", val)
+				/*case <-ctx.Done():
+				fmt.Println("Context cancelled. Exiting.")
+				cancel()
+				return
+			}*/
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestBlockCacheChan(t *testing.T) {
+	ch := make(chan int, 3)
+	for i := 0; i < 2; i++ {
+		ch <- i
+	}
+	fmt.Println("aaaaa")
+}
+
+func TestContextWithCancel(t *testing.T) {
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 4*time.Second)
+	fmt.Println("111")
+	defer cancel2()
+	fmt.Println("222")
+	val := <-ctx2.Done()
+	fmt.Println("333", val)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	ctx.Value("sss")
+	go func() {
+		time.Sleep(time.Second * 3)
+		fmt.Println("start cancel", time.Now().Format("2006-04-02 15:04:05.000.Z07"))
+		cancel()
+	}()
+	select {
+	case <-ctx.Done():
+		fmt.Println("Context canceled", time.Now().String())
+	}
+	fmt.Println("end")
+
+	//这个例子中，当执行cancel时，会触发ctx.Done()通道关闭，不再阻塞
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 	"gorm.io/driver/mysql"
@@ -91,10 +92,25 @@ func main() {
 	fmt.Println("start...")
 	//Init()
 	r := gin.Default()
+	// 启用 CORS 中间件
+	r.Use(cors.Default())
+	config := cors.DefaultConfig()
+	config.AllowOrigins = []string{"http://localhost:1111"} // 允许的来源
+	r.Use(cors.New(config))
 
 	r.GET("/", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{
 			"message": "Hello, World!",
+		})
+	})
+
+	r.POST("/login", func(context *gin.Context) {
+		var requestBody = make(map[string]string)
+		if err := context.BindJSON(&requestBody); err == nil {
+			log.Println("requestBody", requestBody)
+		}
+		context.JSON(http.StatusOK, gin.H{
+			"token": "Hello, World! I am TOKEN",
 		})
 	})
 
@@ -149,7 +165,6 @@ func main() {
 			})
 		}
 	})
-
 	r.Run(":8084")
 }
 
