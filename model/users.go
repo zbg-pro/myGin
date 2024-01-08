@@ -37,7 +37,7 @@ type UserReq struct {
 var jwtKey = []byte("your-secret-key")
 
 // ParseToken 解析和验证 JWT
-func (u *User) ParseToken(tokenString string) (*jwt.StandardClaims, error) {
+func ParseToken(tokenString string) (*jwt.StandardClaims, error) {
 	// 解析 JWT
 	token, err := jwt.ParseWithClaims(tokenString, &jwt.StandardClaims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtKey, nil

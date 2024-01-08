@@ -130,7 +130,9 @@ func main() {
 		context.JSON(http.StatusOK, response)
 	})
 
-	r.GET("/queryUser", queryUserHandle)
+	authed := r.Group("/")
+	authed.Use(CheckAuthedMiddle)
+	authed.POST("/queryUser", queryUserHandle)
 
 	r.GET("/ws", func(context *gin.Context) {
 		handleWebSocket(context.Writer, context.Request)
@@ -186,6 +188,22 @@ func main() {
 	r.Run(":8084")
 }
 
+func CheckAuthedMiddle(c *gin.Context) {
+	var response = model.Response{}
+
+	token := c.Query("token")
+	claims, err := model.ParseToken(token)
+	if err == nil {
+		uid := claims.Subject
+		c.Set("userId", uid)
+		c.Next()
+		return
+	}
+	response = model.ErrorResponse(10001, "登陆超时", "")
+	c.JSON(http.StatusOK, response)
+	c.Abort()
+}
+
 func handleLogin(context *gin.Context) {
 	var requestBody = make(map[string]interface{})
 	var response = model.Response{}
@@ -220,14 +238,22 @@ func handleLogin(context *gin.Context) {
 
 }
 
-func queryUserHandle(context *gin.Context) {
+func queryUserHandle(c *gin.Context) {
 	var reqUser map[string]interface{}
 
 	var response = model.Response{}
-	if err := context.BindJSON(&reqUser); err != nil {
+
+	params := make(map[string]string)
+	for key, values := range c.Request.URL.Query() {
+		if len(values) > 0 {
+			params[key] = values[0]
+		}
+	}
+
+	/*if err := c.BindJSON(&reqUser); err != nil {
 		log.Println("requestBody", reqUser)
 		response = model.ErrorResponse(10001, "传参错误"+err.Error(), nil)
-	} else {
+	} else*/{
 		dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
 		var targetList []model.User
 		err := dao.SelectPageByParamMap(dbConn, reqUser, model.User{}, &targetList, nil)
@@ -238,7 +264,7 @@ func queryUserHandle(context *gin.Context) {
 		}
 	}
 
-	context.JSON(http.StatusOK, response)
+	c.JSON(http.StatusOK, response)
 }
 
 func startHeartbeat() {
