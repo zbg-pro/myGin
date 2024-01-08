@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/logger"
 	"log"
 	"myGin/config"
+	"myGin/dao"
 	"myGin/model"
 	"myGin/utils"
 	"net/http"
@@ -59,7 +60,7 @@ func init() {
 			New: func() interface{} {
 				// 连接 MySQL 数据库
 				//db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
-				db, err := gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+				db, err := gorm.Open(sqlite.Open("sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 
 				if err != nil {
 					log.Println("Failed to connect to database:", err)
@@ -106,26 +107,30 @@ func main() {
 		})
 	})
 
-	r.POST("/login", func(context *gin.Context) {
-		var requestBody = make(map[string]string)
-		if err := context.BindJSON(&requestBody); err == nil {
-			log.Println("requestBody", requestBody)
-		}
-		context.JSON(http.StatusOK, gin.H{
-			"token": "Hello, World! I am TOKEN",
-		})
-	})
+	r.POST("/login", handleLogin)
 
 	r.POST("/AddUser", func(context *gin.Context) {
 		var requestBody = model.User{}
-		if err := context.BindJSON(&requestBody); err == nil {
+
+		var response = model.Response{}
+		if err := context.BindJSON(&requestBody); err != nil {
 			log.Println("requestBody", requestBody)
+			response = model.ErrorResponse(10001, "传参错误"+err.Error(), nil)
+		} else {
+			requestBody.CreateTime = time.Now()
+			dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
+			err := dao.Insert(dbConn, &requestBody)
+			if err != nil {
+				response = model.ErrorResponse(10001, "addUser失败"+err.Error(), nil)
+			} else {
+				response = model.SuccessResponse("")
+			}
 		}
 
-		context.JSON(http.StatusOK, gin.H{
-			"token": "Hello, World! I am TOKEN",
-		})
+		context.JSON(http.StatusOK, response)
 	})
+
+	r.GET("/queryUser", queryUserHandle)
 
 	r.GET("/ws", func(context *gin.Context) {
 		handleWebSocket(context.Writer, context.Request)
@@ -179,6 +184,61 @@ func main() {
 		}
 	})
 	r.Run(":8084")
+}
+
+func handleLogin(context *gin.Context) {
+	var requestBody = make(map[string]interface{})
+	var response = model.Response{}
+
+	if err := context.BindJSON(&requestBody); err == nil {
+		log.Println("requestBody", requestBody)
+	}
+
+	dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
+	var dest model.User
+	err := dao.SelectPageByParamMap(dbConn, requestBody, model.User{}, &dest, nil)
+	if err != nil {
+		response = model.ErrorResponse(10001, "查询失败"+err.Error(), nil)
+	} else {
+		if dest.Name == "" {
+			response = model.ErrorResponse(10002, "用户名或密码不正确", nil)
+			context.JSON(http.StatusOK, response)
+			return
+		}
+		token, err := dest.GenerateToken()
+		if err != nil {
+			response = model.ErrorResponse(10003, "登陆失败"+err.Error(), nil)
+		} else {
+			tokenInfo := make(map[string]interface{})
+			tokenInfo["token"] = token
+			tokenInfo["uid"] = dest.ID
+			response = model.SuccessResponse(tokenInfo)
+		}
+	}
+
+	context.JSON(http.StatusOK, response)
+
+}
+
+func queryUserHandle(context *gin.Context) {
+	var reqUser map[string]interface{}
+
+	var response = model.Response{}
+	if err := context.BindJSON(&reqUser); err != nil {
+		log.Println("requestBody", reqUser)
+		response = model.ErrorResponse(10001, "传参错误"+err.Error(), nil)
+	} else {
+		dbConn := dataSource["zb_trx"].Get().(*gorm.DB)
+		var targetList []model.User
+		err := dao.SelectPageByParamMap(dbConn, reqUser, model.User{}, &targetList, nil)
+		if err != nil {
+			response = model.ErrorResponse(10001, "查询失败"+err.Error(), nil)
+		} else {
+			response = model.SuccessResponse(targetList)
+		}
+	}
+
+	context.JSON(http.StatusOK, response)
 }
 
 func startHeartbeat() {

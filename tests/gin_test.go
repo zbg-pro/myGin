@@ -9,7 +9,6 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 	"log"
 	"myGin/config"
@@ -217,7 +216,7 @@ func TestSqlLiteQuery(t *testing.T) {
 	}
 	fmt.Println(orderMap)
 	var targetList []model.User
-	dao.SelectPageList(nil, model.User{}, paramMap, &targetList, orderMap)
+	dao.SelectPageByParamMap(nil, paramMap, model.User{}, &targetList, orderMap)
 	fmt.Println("users2", targetList)
 }
 
@@ -672,58 +671,48 @@ func TestContextWithCancel(t *testing.T) {
 	//这个例子中，当执行cancel时，会触发ctx.Done()通道关闭，不再阻塞
 }
 
-// 过滤空值或零值的通用插入方法
-func InsertRecordFiltered(db *gorm.DB, record interface{}) error {
-	val := reflect.ValueOf(record)
-	//typ := reflect.TypeOf(record)
-
-	// 如果传入的不是指针类型，直接返回错误
-	if val.Kind() != reflect.Ptr || val.IsNil() {
-		return gorm.ErrInvalidData
-	}
-
-	// 如果传入的是指针，但是指向的不是结构体，直接返回错误
-	if elem := val.Elem(); elem.Kind() != reflect.Struct {
-		return gorm.ErrInvalidData
-	}
-
-	// 过滤空值或零值
-	var updates []string
-	for i := 0; i < val.Elem().NumField(); i++ {
-		field := val.Elem().Type().Field(i)
-		value := val.Elem().Field(i).Interface()
-
-		// 过滤掉零值和空值
-		if !reflect.DeepEqual(value, reflect.Zero(field.Type).Interface()) && !isEmpty(value) {
-			updates = append(updates, field.Name)
-		}
-	}
-
-	// 创建记录
-	return db.Model(record).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "primary_key_column_name"}},
-		DoUpdates: clause.AssignmentColumns(updates),
-	}).Create(record).Error
+func TestInsert(t *testing.T) {
+	user := model.User{Name: "allen78", Age: 17, CreateTime: time.Now()}
+	arr := []model.User{user}
+	dao.Insert(nil, &arr)
 }
 
-// 判断值是否为空
-func isEmpty(value interface{}) bool {
-	if value == nil {
-		return true
+func TestDate(t *testing.T) {
+	fmt.Println("date:", time.Now().Format("2006-01-02 15:04:05.000"))
+	db, err := gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+	if err != nil {
+		log.Fatal("error:", err)
+		return
 	}
+	db.AutoMigrate(&model.User{})
+}
 
-	switch reflect.TypeOf(value).Kind() {
-	case reflect.String, reflect.Map, reflect.Slice, reflect.Array:
-		return reflect.ValueOf(value).Len() == 0
-	case reflect.Bool:
-		return !value.(bool)
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		return value.(int64) == 0
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		return value.(uint64) == 0
-	case reflect.Float32, reflect.Float64:
-		return value.(float64) == 0
+func TestSelectById(t *testing.T) {
+	u := model.User{}
+	dao.SelectById(nil, model.User{}, 19, &u)
+	fmt.Println(u)
+}
+
+func TestAddUser(t *testing.T) {
+	s := `{
+			"name":"allen79",
+			"age":37,
+			"password":"084ef8120da56320bad22556499991ef"
+		}`
+
+	// 解析 JSON 数据到结构体
+	var requestBody = model.User{}
+	err := json.Unmarshal([]byte(s), &requestBody)
+	if err != nil {
+		fmt.Println("Error parsing JSON:", err)
+		return
 	}
+	requestBody.CreateTime = time.Now()
 
-	return false
+	fmt.Println(requestBody)
+	err = dao.Insert(nil, &requestBody)
+	if err != nil {
+		response := model.ErrorResponse(10001, "addUser失败"+err.Error(), nil)
+		fmt.Println(response)
+	}
 }

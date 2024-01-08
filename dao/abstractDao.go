@@ -16,6 +16,7 @@ import (
 )
 
 type QueryModel interface {
+	TableName() string
 }
 
 func init() {
@@ -28,51 +29,46 @@ func Select(db *gorm.DB, modelType QueryModel, dest interface{}) error {
 
 func SelectPage(db *gorm.DB, modelType QueryModel, dest interface{}, orderByFieldNameMap map[string]bool) error {
 	paramMap := utils.StructToMap(modelType)
-	tableName := utils.CamelToSnake(GetModelType(dest).Name())
-	return SelectPageByParamMap(db, paramMap, modelType, tableName, dest, orderByFieldNameMap)
-}
-
-func SelectByParamMap(db *gorm.DB, paramMap map[string]interface{}, modelCustomType QueryModel, tableName string, dest interface{}) error {
-	return SelectPageByParamMap(db, paramMap, modelCustomType, tableName, dest, nil)
+	return SelectPageByParamMap(db, paramMap, modelType, dest, orderByFieldNameMap)
 }
 
 var ErrUnsupportedDataType = errors.New("unsupported data type")
 
-func SelectPageByParamMap(db *gorm.DB, paramMap map[string]interface{}, modelCustomType QueryModel, tableName string, dest interface{}, orderByFieldNameMap map[string]bool) error {
+func SelectPageByParamMap(db *gorm.DB, paramMap map[string]interface{}, modelCustomType QueryModel, dest interface{}, orderByFieldNameMap map[string]bool) error {
 	if db == nil {
 		var err error
 		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
 		if err != nil {
 			log.Fatal("error:", err)
+			return err
 		}
 	}
 	if dest == nil {
 		return fmt.Errorf("SelectPageByParamMap %w: %+v", ErrUnsupportedDataType, dest)
 	}
 
+	tableName := modelCustomType.TableName()
 	if strings.TrimSpace(tableName) == "" {
 		tableName = utils.CamelToSnake(GetModelType(dest).Name())
 	}
 	conditions := GetConditions(paramMap, modelCustomType, orderByFieldNameMap)
-	db.Table(tableName).Where(conditions[0], conditions[1:]...).Find(dest)
-	return nil
-}
-
-// 通用查询
-func SelectPageList(db *gorm.DB, modelType QueryModel, paramMap map[string]interface{}, result interface{}, orderByFieldNames map[string]bool) error {
-	if db == nil {
-		var err error
-		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
-		if err != nil {
-			log.Fatal("error:", err)
+	result := db.Table(tableName).Where(conditions[0], conditions[1:]...).Find(dest)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			// 查询为空，处理空数据的逻辑
+			fmt.Println("No records found")
+		} else {
+			// 其他错误，处理其他错误的逻辑
+			fmt.Println("Error:", result.Error)
 		}
+	} else {
+		// 查询成功，dest 包含查询结果
+		fmt.Println("Query result:", dest)
 	}
-	conditions := GetConditions(paramMap, modelType, orderByFieldNames)
-	db.Table(utils.CamelToSnake(GetModelType(modelType).Name())).Where(conditions[0], conditions[1:]...).Find(result)
 	return nil
 }
 
-func SelectById(db *gorm.DB, modelType QueryModel, id interface{}, result interface{}) (tx *gorm.DB) {
+func SelectById(db *gorm.DB, modelType QueryModel, id interface{}, dest interface{}) (tx *gorm.DB) {
 	if db == nil {
 		var err error
 		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
@@ -86,9 +82,13 @@ func SelectById(db *gorm.DB, modelType QueryModel, id interface{}, result interf
 	paramMap[idName] = id
 
 	//给一个json获取到到map
+	tableName := modelType.TableName()
+	if strings.TrimSpace(tableName) == "" {
+		tableName = utils.CamelToSnake(GetModelType(dest).Name())
+	}
 	conditions := GetConditions(paramMap, modelType, nil)
 
-	db.Table(utils.CamelToSnake(GetModelType(modelType).Name())).Where(conditions[0], conditions[1:]...).Find(result)
+	db.Table(tableName).Where(conditions[0], conditions[1:]...).Find(dest)
 	return nil
 }
 
@@ -443,4 +443,22 @@ func GetModelType(dest interface{}) reflect.Type {
 	}
 
 	return modelType //, nil
+}
+
+func Insert(db *gorm.DB, record interface{}) error {
+	if db == nil {
+		var err error
+		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+		if err != nil {
+			log.Fatal("error:", err)
+			return err
+		}
+	}
+
+	tx := db.CreateInBatches(record, 3000)
+	if tx.Error != nil {
+		log.Println("Failed to insert record:", tx.Error)
+		return tx.Error
+	}
+	return nil
 }
