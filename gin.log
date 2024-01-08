@@ -57,3 +57,18 @@
 2024/01/03 21:51:28 whereSql:   1=1  and name not in (?,?)  and age in (?,?,?)  order by id asc,age asc,name desc limit 0, 10 
 2024/01/03 21:51:28 whereParam:  ["a","b",24,25,26]
 2024/01/03 21:51:28 conditions:[" 1=1  and name not in (?,?)  and age in (?,?,?)  order by id asc,age asc,name desc limit 0, 10 ","a","b",24,25,26]
+2024/01/08 11:25:51 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/08 11:25:51 whereParam:  [26]
+2024/01/08 11:25:51 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2024/01/08 11:48:11 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/08 11:48:11 whereParam:  [26]
+2024/01/08 11:48:11 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2024/01/08 12:29:30 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/08 12:29:30 whereParam:  [26]
+2024/01/08 12:29:30 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2024/01/08 12:30:54 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/08 12:30:54 whereParam:  [26]
+2024/01/08 12:30:54 conditions:[" 1=1  and age=?  limit 0, 10 ",26]
+2024/01/08 12:31:17 whereSql:   1=1  and age=?  limit 0, 10 
+2024/01/08 12:31:17 whereParam:  [26]
+2024/01/08 12:31:17 conditions:[" 1=1  and age=?  limit 0, 10 ",26]

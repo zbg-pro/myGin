@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -185,4 +186,11 @@ func ToJSON(val interface{}) string {
 	} else {
 		return fmt.Sprintf("toJSON error:%v", err)
 	}
+}
+
+func CamelToSnake(str string) string {
+	// 使用正则表达式将头峰（CamelCase）转为下划线风格（snake_case）
+	re := regexp.MustCompile("([a-z0-9])([A-Z])")
+	snakeCase := re.ReplaceAllString(str, "${1}_${2}")
+	return strings.ToLower(snakeCase)
 }

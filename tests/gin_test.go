@@ -9,6 +9,7 @@ import (
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 	"log"
 	"myGin/config"
@@ -105,29 +106,6 @@ func TestDB(t *testing.T) {
 type QueryModel interface {
 	TableName() string
 }
-type User struct {
-	ID   uint   `gorm:"primaryKey;column:id" column:"id" json:"id"`
-	Name string `gorm:"column:name" column:"name" json:"name"`
-	Age  int    `gorm:"column:age" column:"age" json:"age"`
-}
-
-type UserReq struct {
-	User
-	NameLike  string   `json:"nameLike,omitempty"`
-	AgeStart  int      `json:"ageStart,omitempty"`
-	AgeEnd    int      `json:"ageEnd,omitempty"`
-	AgeMin    int      `json:"ageMin,omitempty"`
-	AgeMax    int      `json:"ageMax,omitempty"`
-	NameList  []string `json:"nameList,omitempty"`
-	AgeList   []string `json:"ageList,omitempty"`
-	AgeNqList []string `json:"ageNqList,omitempty"`
-}
-
-func (u User) TableName() string {
-	//TODO implement me
-	return "users"
-	//panic("implement me")
-}
 
 type Book struct {
 	ID         uint      `gorm:"primaryKey"`
@@ -155,7 +133,7 @@ func TestSqlLiteInsert(t *testing.T) {
 		log.Println("创建失败：", err)
 	}
 
-	newUser := User{
+	newUser := model.User{
 		Age:  23,
 		Name: "allen",
 	}
@@ -174,7 +152,7 @@ func TestSqlLiteInsert2(t *testing.T) {
 		log.Println("创建失败：", err)
 	}
 
-	newUser := []User{
+	newUser := []model.User{
 		{Age: 24, Name: "allen2"},
 		{Age: 25, Name: "allen3"},
 		{Age: 26, Name: "allen4"},
@@ -194,9 +172,9 @@ func TestSqlLiteDel(t *testing.T) {
 	if err != nil {
 		log.Fatal("error:", err)
 	}
-	db.Delete(&User{}, 1)
+	db.Delete(&model.User{}, 1)
 
-	rs := db.Where("age < ?", 24).Delete(&User{})
+	rs := db.Where("age < ?", 24).Delete(&model.User{})
 	log.Println("rs", rs.RowsAffected)
 }
 
@@ -209,7 +187,7 @@ func TestSqlLiteUpdate(t *testing.T) {
 	tx1.Rollback()
 	tx1.Commit()
 
-	tx := db.Where("id = ?", 5).Updates(User{Name: "zl239"})
+	tx := db.Where("id = ?", 5).Updates(model.User{Name: "zl239"})
 	if tx.Error != nil {
 		fmt.Println("tx.Error:", tx.Error)
 	}
@@ -238,8 +216,8 @@ func TestSqlLiteQuery(t *testing.T) {
 		"121age": true,
 	}
 	fmt.Println(orderMap)
-	var targetList []User
-	dao.Query(nil, User{}, paramMap, &targetList, orderMap)
+	var targetList []model.User
+	dao.SelectPageList(nil, model.User{}, paramMap, &targetList, orderMap)
 	fmt.Println("users2", targetList)
 }
 
@@ -274,7 +252,7 @@ func TestTypeField(t *testing.T) {
 		return
 	}
 
-	userInstance := reflect.New(reflect.TypeOf(User{})).Elem().Interface().(User)
+	userInstance := reflect.New(reflect.TypeOf(model.User{})).Elem().Interface().(model.User)
 
 	structType := reflect.TypeOf(userInstance)
 
@@ -310,29 +288,29 @@ func TestGetDefaultVal(t *testing.T) {
 		"ID":     true,
 		"121age": true,
 	}
-	s := dao.GetOrderBySql(User{}, orderMap, pageIndex, pageSize)
+	s := dao.GetOrderBySql(model.User{}, orderMap, pageIndex, pageSize)
 	fmt.Println("$$$$$$$ " + s)
 }
 
 func TestGetColNameByFieldName(t *testing.T) {
-	a := dao.GetTableColumnNameByFieldName(User{}, "Name")
+	a := dao.GetTableColumnNameByFieldName(model.User{}, "Name")
 	fmt.Println(a)
 
-	fmt.Println(dao.GetPrimaryKeyJsonName(User{}))
+	fmt.Println(dao.GetPrimaryKeyJsonName(model.User{}))
 
-	var user User
-	dao.SelectById(nil, User{}, 5, &user)
+	var user model.User
+	dao.SelectById(nil, model.User{}, 5, &user)
 	fmt.Println(user)
 }
 
 func TestSelectList(t *testing.T) {
-	model := User{
+	userReq := model.User{
 		Age: 26,
 	}
 
-	var users []User
-	dao.SelectList(nil, model, &users)
-	fmt.Println(users)
+	var targetList []model.User
+	dao.Select(nil, userReq, &targetList)
+	fmt.Println(targetList)
 }
 
 // 示例结构体
@@ -692,4 +670,60 @@ func TestContextWithCancel(t *testing.T) {
 	fmt.Println("end")
 
 	//这个例子中，当执行cancel时，会触发ctx.Done()通道关闭，不再阻塞
+}
+
+// 过滤空值或零值的通用插入方法
+func InsertRecordFiltered(db *gorm.DB, record interface{}) error {
+	val := reflect.ValueOf(record)
+	//typ := reflect.TypeOf(record)
+
+	// 如果传入的不是指针类型，直接返回错误
+	if val.Kind() != reflect.Ptr || val.IsNil() {
+		return gorm.ErrInvalidData
+	}
+
+	// 如果传入的是指针，但是指向的不是结构体，直接返回错误
+	if elem := val.Elem(); elem.Kind() != reflect.Struct {
+		return gorm.ErrInvalidData
+	}
+
+	// 过滤空值或零值
+	var updates []string
+	for i := 0; i < val.Elem().NumField(); i++ {
+		field := val.Elem().Type().Field(i)
+		value := val.Elem().Field(i).Interface()
+
+		// 过滤掉零值和空值
+		if !reflect.DeepEqual(value, reflect.Zero(field.Type).Interface()) && !isEmpty(value) {
+			updates = append(updates, field.Name)
+		}
+	}
+
+	// 创建记录
+	return db.Model(record).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "primary_key_column_name"}},
+		DoUpdates: clause.AssignmentColumns(updates),
+	}).Create(record).Error
+}
+
+// 判断值是否为空
+func isEmpty(value interface{}) bool {
+	if value == nil {
+		return true
+	}
+
+	switch reflect.TypeOf(value).Kind() {
+	case reflect.String, reflect.Map, reflect.Slice, reflect.Array:
+		return reflect.ValueOf(value).Len() == 0
+	case reflect.Bool:
+		return !value.(bool)
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		return value.(int64) == 0
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return value.(uint64) == 0
+	case reflect.Float32, reflect.Float64:
+		return value.(float64) == 0
+	}
+
+	return false
 }

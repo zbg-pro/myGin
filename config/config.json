@@ -15,5 +15,7 @@
     "host": "172.16.100.129",
     "port": 4000,
     "default": true
-  }
+  },
+
+  "allowHost": ["http://localhost:1111", "http://127.0.0.1:1111"]
 }

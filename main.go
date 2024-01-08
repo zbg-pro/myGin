@@ -5,7 +5,7 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 	"log"
@@ -43,9 +43,9 @@ var clients = make(map[string]*Client)
 func init() {
 	dataSource = make(map[string]*sync.Pool)
 
-	cfg := config.LoadConfigByFile()
+	config.Cfg = config.LoadConfigByFile()
 
-	mysqlConfig := cfg.Mysql
+	mysqlConfig := config.Cfg.Mysql
 	for i := 0; i < len(mysqlConfig); i++ {
 		uqName := mysqlConfig[i].UqName
 		if uqName == "" {
@@ -53,12 +53,14 @@ func init() {
 		}
 
 		// 构建 MySQL 连接字符串
-		dsn := mysqlConfig[i].Username + ":" + mysqlConfig[i].Password + "@tcp(" + mysqlConfig[i].Addr + ")/" + mysqlConfig[i].Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
+		//dsn := mysqlConfig[i].Username + ":" + mysqlConfig[i].Password + "@tcp(" + mysqlConfig[i].Addr + ")/" + mysqlConfig[i].Dbname + "?charset=utf8mb4&parseTime=True&loc=Local"
 
 		dbPool := &sync.Pool{
 			New: func() interface{} {
 				// 连接 MySQL 数据库
-				db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+				//db, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+				db, err := gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
+
 				if err != nil {
 					log.Println("Failed to connect to database:", err)
 				} else {
@@ -94,9 +96,9 @@ func main() {
 	r := gin.Default()
 	// 启用 CORS 中间件
 	r.Use(cors.Default())
-	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:1111"} // 允许的来源
-	r.Use(cors.New(config))
+	ginConfig := cors.DefaultConfig()
+	ginConfig.AllowOrigins = config.Cfg.AllowHost //[]string{"http://localhost:1111", "http://127.0.0.1:1111"} // 允许的来源
+	r.Use(cors.New(ginConfig))
 
 	r.GET("/", func(context *gin.Context) {
 		context.JSON(http.StatusOK, gin.H{
@@ -109,6 +111,17 @@ func main() {
 		if err := context.BindJSON(&requestBody); err == nil {
 			log.Println("requestBody", requestBody)
 		}
+		context.JSON(http.StatusOK, gin.H{
+			"token": "Hello, World! I am TOKEN",
+		})
+	})
+
+	r.POST("/AddUser", func(context *gin.Context) {
+		var requestBody = model.User{}
+		if err := context.BindJSON(&requestBody); err == nil {
+			log.Println("requestBody", requestBody)
+		}
+
 		context.JSON(http.StatusOK, gin.H{
 			"token": "Hello, World! I am TOKEN",
 		})

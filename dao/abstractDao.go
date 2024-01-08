@@ -1,6 +1,7 @@
 package dao
 
 import (
+	"errors"
 	"fmt"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -15,15 +16,29 @@ import (
 )
 
 type QueryModel interface {
-	TableName() string
 }
 
 func init() {
 	log2.InitLogger()
 }
 
-func SelectList(db *gorm.DB, modelType QueryModel, resultList interface{}) (tx *gorm.DB) {
+func Select(db *gorm.DB, modelType QueryModel, dest interface{}) error {
+	return SelectPage(db, modelType, dest, nil)
+}
+
+func SelectPage(db *gorm.DB, modelType QueryModel, dest interface{}, orderByFieldNameMap map[string]bool) error {
 	paramMap := utils.StructToMap(modelType)
+	tableName := utils.CamelToSnake(GetModelType(dest).Name())
+	return SelectPageByParamMap(db, paramMap, modelType, tableName, dest, orderByFieldNameMap)
+}
+
+func SelectByParamMap(db *gorm.DB, paramMap map[string]interface{}, modelCustomType QueryModel, tableName string, dest interface{}) error {
+	return SelectPageByParamMap(db, paramMap, modelCustomType, tableName, dest, nil)
+}
+
+var ErrUnsupportedDataType = errors.New("unsupported data type")
+
+func SelectPageByParamMap(db *gorm.DB, paramMap map[string]interface{}, modelCustomType QueryModel, tableName string, dest interface{}, orderByFieldNameMap map[string]bool) error {
 	if db == nil {
 		var err error
 		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
@@ -31,12 +46,20 @@ func SelectList(db *gorm.DB, modelType QueryModel, resultList interface{}) (tx *
 			log.Fatal("error:", err)
 		}
 	}
-	conditions := GetConditions(paramMap, modelType, nil)
-	return db.Table(modelType.TableName()).Where(conditions[0], conditions[1:]...).Find(resultList)
+	if dest == nil {
+		return fmt.Errorf("SelectPageByParamMap %w: %+v", ErrUnsupportedDataType, dest)
+	}
+
+	if strings.TrimSpace(tableName) == "" {
+		tableName = utils.CamelToSnake(GetModelType(dest).Name())
+	}
+	conditions := GetConditions(paramMap, modelCustomType, orderByFieldNameMap)
+	db.Table(tableName).Where(conditions[0], conditions[1:]...).Find(dest)
+	return nil
 }
 
 // 通用查询
-func Query(db *gorm.DB, modelType QueryModel, paramMap map[string]interface{}, result interface{}, orderByFieldNames map[string]bool) (tx *gorm.DB) {
+func SelectPageList(db *gorm.DB, modelType QueryModel, paramMap map[string]interface{}, result interface{}, orderByFieldNames map[string]bool) error {
 	if db == nil {
 		var err error
 		db, err = gorm.Open(sqlite.Open("../sqllite/sqlLite-database.db"), &gorm.Config{Logger: logger.Default.LogMode(logger.Info)})
@@ -45,7 +68,8 @@ func Query(db *gorm.DB, modelType QueryModel, paramMap map[string]interface{}, r
 		}
 	}
 	conditions := GetConditions(paramMap, modelType, orderByFieldNames)
-	return db.Table(modelType.TableName()).Where(conditions[0], conditions[1:]...).Find(result)
+	db.Table(utils.CamelToSnake(GetModelType(modelType).Name())).Where(conditions[0], conditions[1:]...).Find(result)
+	return nil
 }
 
 func SelectById(db *gorm.DB, modelType QueryModel, id interface{}, result interface{}) (tx *gorm.DB) {
@@ -64,7 +88,8 @@ func SelectById(db *gorm.DB, modelType QueryModel, id interface{}, result interf
 	//给一个json获取到到map
 	conditions := GetConditions(paramMap, modelType, nil)
 
-	return db.Table(modelType.TableName()).Where(conditions[0], conditions[1:]...).Find(result)
+	db.Table(utils.CamelToSnake(GetModelType(modelType).Name())).Where(conditions[0], conditions[1:]...).Find(result)
+	return nil
 }
 
 func GetConditions(paramMap map[string]interface{}, modelType QueryModel, orderByFieldNames map[string]bool) []interface{} {
@@ -392,4 +417,30 @@ func GetPrimaryKeyJsonName(modelType QueryModel) string {
 		}
 	}
 	return fieldName
+}
+
+func GetModelType(dest interface{}) reflect.Type {
+
+	value := reflect.ValueOf(dest)
+	if value.Kind() == reflect.Ptr && value.IsNil() {
+		value = reflect.New(value.Type().Elem())
+	}
+	modelType := reflect.Indirect(value).Type()
+
+	if modelType.Kind() == reflect.Interface {
+		modelType = reflect.Indirect(reflect.ValueOf(dest)).Elem().Type()
+	}
+
+	for modelType.Kind() == reflect.Slice || modelType.Kind() == reflect.Array || modelType.Kind() == reflect.Ptr {
+		modelType = modelType.Elem()
+	}
+
+	if modelType.Kind() != reflect.Struct {
+		if modelType.PkgPath() == "" {
+			return nil //, fmt.Errorf("%w: %+v", ErrUnsupportedDataType, dest)
+		}
+		return nil //, fmt.Errorf("%w: %s.%s", ErrUnsupportedDataType, modelType.PkgPath(), modelType.Name())
+	}
+
+	return modelType //, nil
 }

@@ -14,8 +14,9 @@ import (
 )
 
 type Config struct {
-	Mysql []MysqlConfig `json:"mysql"`
-	Redis RedisConfig   `json:"redis"`
+	Mysql     []MysqlConfig `json:"mysql"`
+	Redis     RedisConfig   `json:"redis"`
+	AllowHost []string      `json:"allowHost"`
 }
 
 type MysqlConfig struct {
@@ -59,6 +60,8 @@ func GetConfig() *Config {
 
 	return &config
 }
+
+var Cfg *Config
 
 func LoadConfigByFile() *Config {
 	fmt.Println(GetCurrentAbPath())
